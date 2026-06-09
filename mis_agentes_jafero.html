@@ -1,18 +1,29 @@
 <!DOCTYPE html>
 <html>
-<head><title>Jafero</title></head>
+<head>
+<meta charset="UTF-8">
+<title>Jafero AI</title>
+</head>
 <body>
 <h1>Jafero AI OK</h1>
-<textarea id="prompt"></textarea><br>
-<button onclick="enviar()">Enviar</button>
-<pre id="res"></pre>
+<textarea id="msg"></textarea>
+<button onclick="send()">Enviar</button>
 
 <script>
-async function enviar(){
- const prompt=document.getElementById("prompt").value;
- const r=await fetch("/api",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt})});
- const d=await r.json();
- document.getElementById("res").innerText=d.response;
+async function send() {
+  const input = document.getElementById("msg").value;
+
+  const res = await fetch("/api", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({
+      message: input,
+      system: "Responde como asistente útil"
+    })
+  });
+
+  const data = await res.json();
+  alert(data.response || "Error");
 }
 </script>
 </body>
