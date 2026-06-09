@@ -1,30 +1,1098 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Jafero AI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mis Agentes Jafero · IA System</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: #0a0e1a;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    overflow: hidden;
+  }
+
+  #root { width: 100%; height: 100%; }
+
+  @keyframes bounce  { 0%,80%,100%{transform:translateY(0);opacity:.4} 40%{transform:translateY(-5px);opacity:1} }
+  @keyframes pulse   { 0%,100%{opacity:1} 50%{opacity:.5} }
+  @keyframes fadeIn  { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+  textarea:focus { outline: none !important; border-color: #f59e0b !important; box-shadow: 0 0 0 3px rgba(245,158,11,.15) !important; }
+
+  ::-webkit-scrollbar       { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+  button { font-family: inherit; }
+
+  /* ── Responsive grid ── */
+  .grid-active  { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .grid-agents  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+
+  @media (max-width: 1100px) {
+    .grid-active { grid-template-columns: repeat(3, 1fr); }
+    .grid-agents { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 768px) {
+    .grid-active { grid-template-columns: repeat(2, 1fr); }
+    .grid-agents { grid-template-columns: 1fr; }
+  }
+</style>
 </head>
 <body>
-<h1>Jafero AI OK</h1>
-<textarea id="msg"></textarea>
-<button onclick="send()">Enviar</button>
+<div id="root"></div>
 
-<script>
-async function send() {
-  const input = document.getElementById("msg").value;
+<script type="text/babel">
+const { useState, useRef, useEffect } = React;
 
-  const res = await fetch("/api", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({
-      message: input,
-      system: "Responde como asistente útil"
-    })
+const AMBER  = "#f59e0b";
+const DARK   = "#0d1117";
+const BORDER = "rgba(255,255,255,0.07)";
+
+/* ══════════════════════════════════════
+   AGENTES
+══════════════════════════════════════ */
+const AGENTS = [
+  {
+    id:"atlas", name:"ATLAS", subtitle:"Cazador de Productos Ganadores",
+    desc:"Encuentra los 5 productos virales con margen real para tu tienda",
+    initials:"AT", color:"#f59e0b",
+    tag:"TikTok · Facebook · Trends",
+    task:"Calculando potencial €/mes...",
+    welcome:"Dime en qué nicho quieres vender o pídeme que busque yo. Te entrego un panel con los 5 productos más virales ahora mismo, con coste, precio, margen y revalorizador de oferta.",
+    suggestions:["Búscame 5 productos virales ahora","Productos para verano en España","Nicho de salud y bienestar"],
+    prompt:`Eres ATLAS, el Cazador de Productos Ganadores. Eres mi trabajador IA que busca productos ganadores para mi tienda online.
+
+Búscame 5 productos virales en TikTok y Facebook que estén vendiendo más de 10.000€ al mes.
+
+Hazme un panel bonito y fácil de leer (que no sea un rollo de informe) donde para cada producto vea:
+- Cuánto cuesta comprarlo
+- A cuánto lo tengo que vender
+- Cuánto gano por cada venta
+- Un revalorizador que haga que sea la opción nº1 en ventas con un producto complementario de regalo muy económico
+
+En la parte de arriba del dashboard pon tu nombre y lo que puedes conseguir y hacer por mí. Nada de fechas.
+
+Añade los siguientes botones que abran links pertinentes en el mismo dashboard:
+- Un botón que me lleve a ver vídeos en TikTok de estos productos
+- Un botón que me lleve a vídeos en Facebook de estos productos
+- Un botón que me lleve a ver fotos de los productos en Google
+- Un botón para ver la tendencia en gráfico en Google Trends España (últimos 5 años)
+
+Asegúrate de que todos los botones funcionan.
+No me busques proveedores, ya los tengo. Evita emojis para mostrarme productos.
+Hazlo ya, rápido, no esperes.`
+  },
+  {
+    id:"nova", name:"NOVA", subtitle:"Constructor de Tienda & Landing Pages",
+    desc:"Crea páginas de producto en HTML optimizadas para convertir visitas en ventas",
+    initials:"NV", color:"#8b5cf6",
+    tag:"HTML editable · CRO · Shopify",
+    task:"Diseñando landing de alta conversión...",
+    welcome:"Dame el nombre del producto, su descripción y arrástrame las imágenes del proveedor junto a tu logo. Te entrego una landing page completa en HTML lista para publicar.",
+    suggestions:["Crea una landing page","Calcula mi beneficio por venta","Revaloriza mi oferta"],
+    prompt:`Eres NOVA, mi creadora de landing pages para tiendas online.
+
+== FUNCIÓN PRINCIPAL · LANDING PAGES ==
+Cuando te dé una descripción de producto y un nombre, me generas un artefacto HTML con una landing page optimizada para tener una gran tasa de conversión.
+
+El artefacto debe tener:
+- Un apartado donde yo te pueda dar la descripción y el nombre del producto.
+- Un apartado para subir imágenes del producto arrastrándolas al artefacto.
+- Un apartado para subir el logo de mi tienda online arrastrándolo al artefacto.
+- El HTML editable donde yo pueda modificar después: descripción, título, precio, colores, botones e imágenes.
+
+ESTRUCTURA DE LA LANDING:
+1) HERO: imagen grande + título + subtítulo + precio + botón de compra.
+2) PROBLEMA → SOLUCIÓN: dolor del cliente y cómo mi producto lo soluciona.
+3) BENEFICIOS: 4-6 puntos con icono y frase corta, foco en beneficio.
+4) DEMO VISUAL: galería con las imágenes del proveedor.
+5) OFERTA IRRESISTIBLE: precio + descuento + regalo + garantía + urgencia.
+6) TESTIMONIOS: 6 reseñas con foto y nombre.
+7) FAQ: 8 preguntas frecuentes con respuesta.
+8) CTA FINAL: botón de compra grande + recordatorio de garantía y envío.
+
+== FUNCIÓN EXTRA · REVALORIZADOR ==
+OFERTA = producto + bonus barato + garantía 90 días + urgencia legítima + prueba social
+
+== FUNCIÓN EXTRA · CALCULADORA ==
+Fórmula: Beneficio = Precio venta − Coste producto − Coste envío
+
+REGLAS:
+- Español de España.
+- Copy concreto y comercial, sin clichés.
+- Si te falta un dato, lo pides UNA vez y sigues.`
+  },
+  {
+    id:"pluma", name:"PLUMA", subtitle:"Copywriter Persuasivo",
+    desc:"Fichas de producto, emails, bloques de oferta y copy de anuncios que venden",
+    initials:"PL", color:"#ec4899",
+    tag:"Fichas · Emails · Anuncios",
+    task:"Escribiendo textos que convierten...",
+    welcome:"Dime qué necesitas escribir: ficha de producto, emails de carrito abandonado, bloque de oferta o copy de anuncio. Te lo entrego en español de España, directo y sin clichés.",
+    suggestions:["Ficha de producto completa","Emails de carrito abandonado","Copy para TikTok y Facebook"],
+    prompt:`Eres PLUMA, mi copywriter de tienda online. Escribes en español de España, comercial, directo y sin clichés. Tu objetivo es uno: que el cliente compre.
+
+REGLAS QUE SIGUES SIEMPRE:
+1. Hablas del beneficio para el cliente, no de la característica del producto.
+2. Hablas de "tú" al cliente, no de "nosotros" como marca.
+3. Frases cortas. Una idea por frase. Sin paja.
+4. Prohibido: "calidad premium", "excelencia", "el mejor", "líderes en", "experiencia única", "innovación", "soluciones a medida".
+5. Usa números cuando puedas: "ahorra 14 minutos" mejor que "ahorra tiempo".
+
+QUÉ SABES HACER:
+A) FICHA DE PRODUCTO COMPLETA
+- Título (máx 60 caracteres, con beneficio principal)
+- Subtítulo (1 línea de gancho)
+- 5 bullets de beneficios con número/dato
+- Descripción larga (3 párrafos: problema, solución, resultado)
+- 6 FAQs con respuesta
+- Meta título y meta descripción SEO
+
+B) SECUENCIA DE EMAILS
+- Confirmación de pedido
+- Pedido en camino
+- Post-entrega (reseña + venta cruzada)
+- Carrito abandonado #1 (1 hora)
+- Carrito abandonado #2 (24 horas, con bonus)
+- Win-back (60 días sin comprar)
+
+C) BLOQUE DE OFERTA
+- Titular potente
+- Precio tachado vs actual
+- Qué incluye la oferta
+- Bloque de garantía
+- 3 variantes de botón de compra
+
+D) COPY DE ANUNCIO TIKTOK / FACEBOOK
+- Hook (5 primeras palabras)
+- Cuerpo del anuncio
+- CTA
+
+ANTES DE ENTREGAR REVISA: sin clichés, tú directo al cliente, números concretos.`
+  },
+  {
+    id:"voltio", name:"VOLTIO", subtitle:"Director de Anuncios Virales",
+    desc:"5 scripts de vídeo completos para TikTok y Facebook que paran el scroll",
+    initials:"VT", color:"#14b8a6",
+    tag:"TikTok · Facebook · UGC · Scripts",
+    task:"Diseñando anuncios que paran el scroll...",
+    welcome:"Dame el producto, el cliente típico y la plataforma. Te entrego 5 ideas de anuncio distintas con hook, guion segundo a segundo, CTA y música. Listas para grabar.",
+    suggestions:["5 ideas de anuncio para mi producto","Hook para TikTok","Script tipo testimonio"],
+    prompt:`Eres VOLTIO, mi director de anuncios para TikTok y Facebook en España. Solo anuncios de productos físicos en formato vertical 9:16, de 15 a 30 segundos. Tu objetivo: que la gente PARE EL SCROLL en los 3 primeros segundos.
+
+CUANDO TE PASE UN PRODUCTO, ENTREGAS 5 IDEAS DE ANUNCIO DISTINTAS.
+
+Cada idea tiene esta estructura:
+[IDEA X · NOMBRE DEL ÁNGULO]
+
+1) HOOK (0-3 s)
+- Frase exacta que se dice o se ve en pantalla
+- Tiene que prometer un beneficio, sorprender o romper una creencia.
+
+2) GUION SEGUNDO A SEGUNDO (3-25 s)
+Tabla con: segundo, plano, qué hace la persona, qué dice, qué texto sale.
+El guion sigue: Problema → Agitación → Solución → Prueba → Beneficio.
+
+3) CTA (25-30 s): Frase final + qué se ve + qué texto sale.
+
+4) MÚSICA: Género + ejemplo concreto.
+
+5) CAPTION: 1 línea con gancho + beneficio + CTA.
+
+LAS 5 IDEAS SON DE TIPOS DISTINTOS:
+1. DEMO PURA — el producto resolviendo el problema.
+2. TESTIMONIO POV — cliente real hablando a cámara.
+3. ANTES → DESPUÉS — contraste visual.
+4. STORYTIME — "Os tengo que contar lo que me pasó con esto".
+5. CONFESIÓN — "Llevaba meses haciéndolo mal hasta que descubrí…"
+
+REGLAS:
+- Español de España, frases cortas, conversacional.
+- Prohibido: narrador robótico, eslóganes vacíos, música épica genérica.
+- El producto sale SIEMPRE antes del segundo 7.
+- Facebook: más explícito con la oferta. TikTok: más orgánico.
+TONO: director joven con criterio, que sabe vender sin gritar.`
+  },
+  {
+    id:"aria", name:"ARIA", subtitle:"Secretaria Virtual & Atención al Cliente",
+    desc:"Respuestas a clientes, gestión de incidencias, plantillas y FAQs listas para usar",
+    initials:"AR", color:"#f97316",
+    tag:"Emails · DMs · Devoluciones · FAQs",
+    task:"Gestionando bandeja de entrada...",
+    welcome:"Puedo redactar respuestas a clientes, gestionar devoluciones, crear plantillas para las situaciones más comunes o construir tu FAQ completa. ¿Por dónde empezamos?",
+    suggestions:["Respuesta a cliente enfadado","Plantillas de atención al cliente","Crea mi FAQ completa"],
+    prompt:`Eres ARIA, especialista en atención al cliente y gestión operativa de tiendas online en España.
+Tu misión: que ningún cliente quede sin respuesta clara y que el equipo no pierda tiempo en tareas repetitivas.
+
+Lo que haces:
+1. RESPUESTAS A CLIENTES: emails, mensajes de Instagram/TikTok y respuestas a reseñas
+2. GESTIÓN DE INCIDENCIAS: devoluciones, pedidos retrasados, productos defectuosos
+3. PLANTILLAS: templates listos para las 10 situaciones más comunes
+4. FAQ: preguntas frecuentes que reducen los tickets al mínimo
+5. PROTOCOLOS: proceso de atención paso a paso
+
+REGLAS DE ORO:
+- Máximo 5 líneas por respuesta
+- Tono humano y directo, nunca corporativo
+- Resuelves el problema ANTES de pedir disculpas
+- NUNCA escribes: "entendemos tu frustración", "lamentamos los inconvenientes"
+- Firmado con nombre de persona, nunca "El equipo de..."
+- El cliente termina siempre con una solución clara o un siguiente paso
+Para emails: asunto siempre incluido.
+Para mensajes: ultra-cortos, máximo 3 líneas.`
+  },
+  {
+    id:"nexo", name:"NEXO", subtitle:"CFO Virtual & Control de Rentabilidad",
+    desc:"Margen neto real, punto de equilibrio, P&L mensual y auditoría de costes",
+    initials:"NX", color:"#6366f1",
+    tag:"Márgenes · P&L · ROAS · Costes",
+    task:"Calculando rentabilidad real...",
+    welcome:"Dame los números de tu tienda: ventas, costes, publicidad, devoluciones. Te digo exactamente si estás ganando o perdiendo dinero de verdad, no sobre el papel.",
+    suggestions:["¿Es rentable mi tienda?","Calcula mi margen neto real","ROAS mínimo para no perder dinero"],
+    prompt:`Eres NEXO, el CFO Virtual de tiendas ecommerce en España.
+Tu trabajo: que el negocio sea rentable de verdad, no solo en ventas brutas.
+
+Lo que analizas:
+1. MARGEN REAL POR UNIDAD
+   Coste producto + Envío + Comisiones Shopify + CPA publicidad + Devoluciones = MARGEN NETO REAL
+
+2. PUNTO DE EQUILIBRIO
+   Cuántas unidades vender al mes para cubrir costes fijos.
+
+3. ROAS MÍNIMO RENTABLE
+   ROAS mínimo para no perder dinero con tu estructura de costes.
+
+4. P&L MENSUAL
+   Ingresos, costes variables, costes fijos, resultado.
+
+5. AUDITORÍA DE COSTES
+   Dónde se escapa el dinero que el propietario no ve.
+
+PARA CADA ANÁLISIS:
+- Número exacto en euros
+- Conclusión directa: rentable o no, sin matices
+- 3 acciones para mejorar rentabilidad ordenadas por impacto
+
+Números claros. Sin jerga contable. Sin decimales innecesarios.`
+  },
+  {
+    id:"core", name:"CORE", subtitle:"Estratega & Cerebro del Sistema",
+    desc:"Diagnóstico del negocio, decisiones difíciles y dirección estratégica",
+    initials:"CR", color:"#f43f5e",
+    tag:"Estrategia · Decisiones · Prioridades",
+    task:"Detectando patrones de negocio...",
+    welcome:"Soy el cerebro estratégico del sistema. Cuéntame dónde estás con tu negocio, qué no funciona o qué decisión tienes que tomar. Te doy mi análisis directo.",
+    suggestions:["Diagnostica mi negocio","¿Qué hago primero?","Ayúdame con esta decisión"],
+    prompt:`Eres CORE, el agente de estrategia y cerebro del sistema.
+Tu misión: ver lo que el propietario no ve y tomar decisiones difíciles.
+
+1. DIAGNÓSTICO: causa raíz, no síntomas
+2. PATRONES: qué funciona y qué no, y por qué
+3. ESTRATEGIA: dirección correcta cuando hay demasiadas opciones
+4. PRIORIZACIÓN: qué hacer PRIMERO con recursos limitados
+5. BENCHMARKING: posición respecto a referentes del sector
+
+TU FORMA DE PENSAR:
+- 20% de acciones que producen el 80% del resultado
+- Preguntas "¿para qué?" antes de proponer soluciones
+- Das opciones con pros, contras y riesgos
+- Nunca dejas respuesta sin conclusión accionable
+
+FORMATO:
+- Máximo 5 líneas por punto
+- Si falta información, la pides antes de responder
+- Conclusión siempre al final: "Lo que haría yo: [acción concreta]"
+- Sin teoría. Sin generalidades. Sin relleno.`
+  },
+
+  /* ─── 8. SYSTEM ─────────────────────────── */
+  {
+    id:"system", name:"SYSTEM", subtitle:"Ejecución Completa del Sistema",
+    desc:"Lanza todos los agentes en secuencia y entrega un producto listo para vender",
+    initials:"SYS", color:"#22c55e",
+    tag:"Full System · Auto · España",
+    task:"Ejecutando flujo completo...",
+    welcome:"Voy a ejecutar el sistema completo de forma automática. Encontraré un producto ganador, validaré su rentabilidad, crearé la oferta, la landing, el copy y los anuncios. Todo en una sola sesión.",
+    suggestions:["Ejecutar sistema completo"],
+    prompt:`Eres el ORQUESTADOR del sistema ecommerce completo. Ejecutas todos los agentes en secuencia sin parar hasta entregar un producto 100% listo para vender en España.
+
+FLUJO QUE DEBES EJECUTAR EN ORDEN:
+
+━━━ FASE 1 · ATLAS — PRODUCTO ━━━
+- Encuentra 1 producto viral en TikTok/Facebook vendiendo más de 10.000€/mes en España
+- Criterios: margen mínimo 3x, tendencia creciente en Google Trends, no saturado
+- Si el producto no cumple, busca otro automáticamente
+
+━━━ FASE 2 · NEXO — VALIDACIÓN FINANCIERA ━━━
+- Coste producto + envío + comisiones + CPA estimado = MARGEN NETO REAL
+- Punto de equilibrio: unidades mínimas al mes para ser rentable
+- Si no es rentable, vuelve a FASE 1
+
+━━━ FASE 3 · NOVA — OFERTA ━━━
+- Estructura la oferta: producto + bonus barato + garantía 90 días + urgencia
+- Precio de venta recomendado con justificación
+- Revalorizador para ser la opción nº1
+
+━━━ FASE 4 · PLUMA — COPY ━━━
+- Título del producto (máx 60 caracteres)
+- 5 bullets de beneficios con datos concretos
+- Descripción larga (problema → solución → resultado)
+- 3 emails: confirmación, carrito abandonado x2
+
+━━━ FASE 5 · VOLTIO — ANUNCIOS ━━━
+- 3 ideas de anuncio para TikTok con hook, guion y CTA
+- 1 idea para Facebook más explícita con la oferta
+
+━━━ ENTREGA FINAL ━━━
+Resumen ejecutivo con:
+✅ Producto elegido y por qué
+✅ Margen neto real por venta
+✅ Oferta completa estructurada
+✅ Copy listo para copiar
+✅ Scripts de anuncios listos para grabar
+✅ Próximos 3 pasos concretos
+
+REGLAS:
+- No pares hasta completar todas las fases
+- Si un producto no es viable, encuentra otro automáticamente
+- Todo orientado a España
+- Sin teoría, solo entregables accionables
+- Formato limpio por fases con separadores claros`
+  }
+];
+
+/* ══════════════════════════════════════
+   SIDEBAR
+══════════════════════════════════════ */
+function Sidebar({ agents, activeId, onSelect, onHome }) {
+  return (
+    <div style={{
+      width: 240, minWidth: 240, background: DARK,
+      display:"flex", flexDirection:"column",
+      borderRight:`1px solid ${BORDER}`,
+      height:"100%", overflowY:"auto"
+    }}>
+      {/* Logo */}
+      <div onClick={onHome} style={{
+        padding:"16px 14px 14px", borderBottom:`1px solid ${BORDER}`,
+        cursor:"pointer", display:"flex", alignItems:"center", gap:10,
+        flexShrink: 0
+      }}>
+        <div style={{
+          width:36, height:36, borderRadius:9,
+          background:`linear-gradient(135deg,${AMBER},#d97706)`,
+          display:"flex", alignItems:"center", justifyContent:"center",
+          fontSize:18, fontWeight:900, color:"#fff", flexShrink:0,
+          boxShadow:`0 0 14px ${AMBER}50`
+        }}>J</div>
+        <div>
+          <div style={{ color:"#f1f5f9", fontSize:12, fontWeight:700, lineHeight:1.2 }}>Mis Agentes</div>
+          <div style={{ color:AMBER, fontSize:9, letterSpacing:"0.14em", fontWeight:700 }}>JAFERO · IA SYSTEM</div>
+        </div>
+      </div>
+
+      {/* Lista */}
+      <div style={{ padding:"10px 8px 4px", flex:1, overflowY:"auto" }}>
+        <div style={{ color:"#334155", fontSize:9, fontWeight:700, letterSpacing:"0.1em", padding:"0 6px 8px", textTransform:"uppercase" }}>Tu equipo IA</div>
+        {agents.map(a => (
+          <div key={a.id} onClick={() => onSelect(a.id)}
+            style={{
+              display:"flex", alignItems:"center", gap:9, padding:"9px 7px",
+              borderRadius:9, cursor:"pointer", marginBottom:2,
+              background: activeId===a.id ? `${AMBER}14` : "transparent",
+              border:`1px solid ${activeId===a.id ? `${AMBER}30` : "transparent"}`,
+              transition:"all 0.15s"
+            }}>
+            <div style={{
+              width:34, height:34, borderRadius:8, flexShrink:0,
+              background:a.color+"1a", border:`1px solid ${a.color}35`,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:9, fontWeight:800, color:a.color
+            }}>{a.initials}</div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ color:"#e2e8f0", fontSize:11.5, fontWeight:700 }}>{a.name}</div>
+              <div style={{ color:"#64748b", fontSize:9.5, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", marginTop:1 }}>{a.subtitle}</div>
+              <div style={{ display:"flex", alignItems:"center", gap:3, marginTop:3 }}>
+                <div style={{ width:5, height:5, borderRadius:"50%", background:AMBER, flexShrink:0, animation:"pulse 2s infinite" }} />
+                <div style={{ color:"#334155", fontSize:8.5, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{a.task}</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Inicio */}
+      <div style={{ padding:"8px 8px 14px", flexShrink:0 }}>
+        <div onClick={onHome}
+          style={{
+            display:"flex", alignItems:"center", gap:9, padding:"9px 7px",
+            borderRadius:9, cursor:"pointer",
+            background: !activeId ? `${AMBER}14` : "transparent",
+            border:`1px solid ${!activeId ? `${AMBER}30` : "transparent"}`
+          }}>
+          <div style={{ width:34, height:34, borderRadius:8, background:`${AMBER}18`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:17, flexShrink:0, color:AMBER }}>⌂</div>
+          <div style={{ color:"#e2e8f0", fontSize:11.5, fontWeight:600 }}>Inicio</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════
+   DASHBOARD
+══════════════════════════════════════ */
+function Dashboard({ agents, onSelect, onRunSystem }) {
+  return (
+    <div style={{ flex:1, background:"#f8fafc", display:"flex", flexDirection:"column", height:"100%", overflow:"hidden" }}>
+      {/* Topbar */}
+      <div style={{
+        background:"#fff", borderBottom:"1px solid #e2e8f0",
+        padding:"13px 24px", display:"flex", alignItems:"center", gap:8,
+        flexShrink:0
+      }}>
+        <div style={{ width:8, height:8, borderRadius:"50%", background:AMBER, animation:"pulse 2s infinite" }} />
+        <span style={{ color:"#0f172a", fontSize:14, fontWeight:700 }}>Mis Agentes Jafero</span>
+        <span style={{ color:"#cbd5e1", fontSize:14 }}>·</span>
+        <span style={{ color:"#64748b", fontSize:13 }}>Sistema de IA para tu tienda autónoma</span>
+        <div style={{
+          marginLeft:"auto", background:"#fef3c7", border:"1px solid #fde68a",
+          borderRadius:20, padding:"4px 12px", display:"flex", alignItems:"center", gap:5
+        }}>
+          <div style={{ width:6, height:6, borderRadius:"50%", background:AMBER }} />
+          <span style={{ fontSize:10, color:"#92400e", fontWeight:700 }}>{agents.length} AGENTES ACTIVOS · 24/7</span>
+        </div>
+      </div>
+
+      {/* Contenido scrollable */}
+      <div style={{ flex:1, overflowY:"auto", padding:"26px 28px 36px" }}>
+
+        {/* Hero */}
+        <div style={{ textAlign:"center", marginBottom:28 }}>
+          <div style={{
+            display:"inline-flex", alignItems:"center", gap:8,
+            background:`${AMBER}12`, border:`1px solid ${AMBER}30`,
+            borderRadius:20, padding:"5px 16px", marginBottom:16
+          }}>
+            <div style={{ width:6, height:6, borderRadius:"50%", background:AMBER, animation:"pulse 2s infinite" }} />
+            <span style={{ fontSize:10, fontWeight:700, color:AMBER, letterSpacing:"0.12em" }}>SISTEMA ACTIVO · 24/7</span>
+          </div>
+          <h1 style={{ fontSize:28, fontWeight:800, color:"#0f172a", margin:"0 0 8px", letterSpacing:"-0.02em" }}>Tu Oficina Virtual de Agentes IA</h1>
+          <p style={{ color:"#64748b", fontSize:14, margin:"0 0 22px" }}>8 especialistas trabajando para ti. Selecciona uno o lanza el sistema completo.</p>
+
+          {/* ── BOTÓN SISTEMA COMPLETO ── */}
+          <button onClick={onRunSystem}
+            style={{
+              display:"inline-flex", alignItems:"center", gap:10,
+              background:"linear-gradient(135deg,#22c55e,#16a34a)",
+              color:"#fff", border:"none", borderRadius:14,
+              padding:"14px 32px", fontSize:15, fontWeight:800,
+              cursor:"pointer", letterSpacing:"-0.01em",
+              boxShadow:"0 4px 24px rgba(34,197,94,0.35)",
+              transition:"all 0.2s"
+            }}
+            onMouseEnter={e => { e.currentTarget.style.transform="translateY(-2px)"; e.currentTarget.style.boxShadow="0 8px 32px rgba(34,197,94,0.45)"; }}
+            onMouseLeave={e => { e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.boxShadow="0 4px 24px rgba(34,197,94,0.35)"; }}>
+            <span style={{ fontSize:20 }}>🚀</span>
+            <span>Ejecutar sistema completo</span>
+            <span style={{ fontSize:11, background:"rgba(255,255,255,0.2)", borderRadius:8, padding:"2px 8px", fontWeight:600 }}>AUTO</span>
+          </button>
+          <p style={{ color:"#94a3b8", fontSize:11, marginTop:10 }}>Producto · Validación · Oferta · Copy · Anuncios — todo en una sesión</p>
+        </div>
+
+        {/* Agentes activos (4 primeros) */}
+        <div style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:14, padding:"18px 20px", marginBottom:26 }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+              <div style={{ width:8, height:8, borderRadius:"50%", background:AMBER }} />
+              <span style={{ fontSize:11, fontWeight:700, color:"#0f172a", letterSpacing:"0.05em", textTransform:"uppercase" }}>Trabajando ahora mismo</span>
+            </div>
+            <span style={{ fontSize:11, color:"#64748b" }}>8 agentes · 24/7</span>
+          </div>
+          <div className="grid-active">
+            {agents.slice(0,4).map(a => (
+              <div key={a.id} onClick={() => onSelect(a.id)}
+                style={{ border:"1px solid #e2e8f0", borderRadius:11, padding:"14px 12px", cursor:"pointer", background:"#fafafa", transition:"all 0.15s" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor=a.color+"60"; e.currentTarget.style.background="#fff"; e.currentTarget.style.boxShadow=`0 4px 16px ${a.color}15`; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor="#e2e8f0"; e.currentTarget.style.background="#fafafa"; e.currentTarget.style.boxShadow="none"; }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:9 }}>
+                  <div style={{ width:30, height:30, borderRadius:7, background:a.color+"18", border:`1px solid ${a.color}30`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:800, color:a.color, flexShrink:0 }}>{a.initials}</div>
+                  <div>
+                    <div style={{ fontSize:12, fontWeight:800, color:"#0f172a", lineHeight:1.2 }}>{a.name}</div>
+                    <span style={{ fontSize:9, background:"#fef3c7", color:"#92400e", padding:"1px 6px", borderRadius:4, fontWeight:700 }}>ACTIVO</span>
+                  </div>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                  <div style={{ width:5, height:5, borderRadius:"50%", background:AMBER, flexShrink:0 }} />
+                  <span style={{ fontSize:9, color:"#64748b", lineHeight:1.3 }}>{a.task}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Grid todos los agentes */}
+        <div style={{ fontSize:11, fontWeight:700, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:14 }}>
+          Todos tus agentes <span style={{ color:"#94a3b8", fontSize:10, fontWeight:400, textTransform:"none" }}>· Haz click para abrirlo</span>
+        </div>
+        <div className="grid-agents">
+          {agents.map(a => (
+            <div key={a.id} onClick={() => onSelect(a.id)}
+              style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:14, padding:"20px 18px", cursor:"pointer", transition:"all 0.18s", animation:"fadeIn 0.3s ease" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor=a.color+"50"; e.currentTarget.style.boxShadow=`0 6px 20px ${a.color}12`; e.currentTarget.style.transform="translateY(-2px)"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor="#e2e8f0"; e.currentTarget.style.boxShadow="none"; e.currentTarget.style.transform="translateY(0)"; }}>
+              <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12 }}>
+                <div style={{ width:44, height:44, borderRadius:11, background:a.color+"18", border:`1px solid ${a.color}25`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, color:a.color, flexShrink:0 }}>{a.initials}</div>
+                <div>
+                  <div style={{ fontSize:15, fontWeight:800, color:"#0f172a" }}>{a.name}</div>
+                  <div style={{ fontSize:11, color:a.color, fontWeight:600, marginTop:1 }}>{a.subtitle}</div>
+                </div>
+              </div>
+              <div style={{ fontSize:12, color:"#64748b", lineHeight:1.6, marginBottom:12 }}>{a.desc}</div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+                {a.tag.split(" · ").map(t => (
+                  <span key={t} style={{ fontSize:9.5, background:a.color+"0d", border:`1px solid ${a.color}20`, color:a.color, padding:"2px 8px", borderRadius:10, fontWeight:600 }}>{t}</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════
+   CHAT VIEW
+══════════════════════════════════════ */
+function ChatView({ agent, messages, input, setInput, loading, onSend, onKey, endRef, onBack }) {
+  const taRef = useRef(null);
+  useEffect(() => {
+    if (taRef.current) {
+      taRef.current.style.height = "auto";
+      taRef.current.style.height = Math.min(taRef.current.scrollHeight, 140) + "px";
+    }
+  }, [input]);
+
+  return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", background:"#f8fafc", minWidth:0, height:"100%" }}>
+      {/* Header */}
+      <div style={{ background:"#fff", borderBottom:"1px solid #e2e8f0", padding:"13px 20px", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+        <button onClick={onBack} style={{ background:"none", border:"none", cursor:"pointer", color:"#64748b", fontSize:22, padding:"0 8px 0 0", lineHeight:1 }}>←</button>
+        <div style={{ width:38, height:38, borderRadius:9, background:agent.color+"1a", border:`1px solid ${agent.color}30`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, color:agent.color, flexShrink:0 }}>{agent.initials}</div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+            <span style={{ fontSize:15, fontWeight:800, color:"#0f172a" }}>{agent.name}</span>
+            <span style={{ fontSize:12, color:agent.color, fontWeight:600 }}>{agent.subtitle}</span>
+          </div>
+          <div style={{ fontSize:10, color:"#94a3b8", marginTop:1 }}>{agent.tag}</div>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:5, background:`${AMBER}10`, border:`1px solid ${AMBER}25`, borderRadius:20, padding:"5px 12px", flexShrink:0 }}>
+          <div style={{ width:6, height:6, borderRadius:"50%", background:AMBER, animation:"pulse 2s infinite" }} />
+          <span style={{ fontSize:10, color:AMBER, fontWeight:700 }}>Activo</span>
+        </div>
+      </div>
+
+      {/* Mensajes */}
+      <div style={{ flex:1, overflowY:"auto", padding:"24px 24px 14px", display:"flex", flexDirection:"column", gap:14 }}>
+        {messages.length === 0 && (
+          <div style={{ textAlign:"center", padding:"40px 20px 20px", animation:"fadeIn 0.4s ease" }}>
+            <div style={{ width:62, height:62, borderRadius:16, background:agent.color+"18", border:`1px solid ${agent.color}25`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:19, fontWeight:800, color:agent.color, margin:"0 auto 14px" }}>{agent.initials}</div>
+            <div style={{ fontSize:18, fontWeight:800, color:"#0f172a", marginBottom:4 }}>{agent.name}</div>
+            <div style={{ fontSize:12, color:agent.color, fontWeight:600, marginBottom:14 }}>{agent.subtitle}</div>
+            <div style={{ fontSize:13.5, color:"#64748b", lineHeight:1.65, maxWidth:460, margin:"0 auto 26px" }}>{agent.welcome}</div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8, justifyContent:"center" }}>
+              {agent.suggestions.map(s => (
+                <button key={s} onClick={() => setInput(s)}
+                  style={{ fontSize:12, padding:"8px 16px", borderRadius:20, border:`1px solid ${agent.color}40`, background:agent.color+"0d", color:agent.color, cursor:"pointer", fontWeight:600, transition:"all 0.15s" }}
+                  onMouseEnter={e => { e.currentTarget.style.background=agent.color+"1c"; e.currentTarget.style.borderColor=agent.color+"70"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background=agent.color+"0d"; e.currentTarget.style.borderColor=agent.color+"40"; }}>{s}</button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {messages.map((m, i) => (
+          <div key={i} style={{ display:"flex", justifyContent:m.role==="user"?"flex-end":"flex-start", gap:8, alignItems:"flex-end", animation:"fadeIn 0.25s ease" }}>
+            {m.role==="assistant" && (
+              <div style={{ width:30, height:30, borderRadius:7, background:agent.color+"18", border:`1px solid ${agent.color}25`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:8, fontWeight:800, color:agent.color, flexShrink:0, marginBottom:2 }}>{agent.initials}</div>
+            )}
+            <div style={{
+              maxWidth:"74%", padding:"12px 16px",
+              borderRadius: m.role==="user" ? "16px 16px 3px 16px" : "16px 16px 16px 3px",
+              background: m.role==="user" ? agent.color : "#fff",
+              border: m.role==="assistant" ? "1px solid #e2e8f0" : "none",
+              color: m.role==="user" ? "#fff" : "#0f172a",
+              fontSize:13.5, lineHeight:1.72, whiteSpace:"pre-wrap", wordBreak:"break-word"
+            }}>{m.content}</div>
+          </div>
+        ))}
+
+        {loading && (
+          <div style={{ display:"flex", gap:8, alignItems:"flex-end", animation:"fadeIn 0.2s ease" }}>
+            <div style={{ width:30, height:30, borderRadius:7, background:agent.color+"18", border:`1px solid ${agent.color}25`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:8, fontWeight:800, color:agent.color, flexShrink:0 }}>{agent.initials}</div>
+            <div style={{ padding:"13px 17px", borderRadius:"16px 16px 16px 3px", background:"#fff", border:"1px solid #e2e8f0" }}>
+              <div style={{ display:"flex", gap:5, alignItems:"center" }}>
+                {[0,1,2].map(i => <div key={i} style={{ width:7, height:7, borderRadius:"50%", background:agent.color, animation:`bounce 1.2s ease-in-out ${i*0.22}s infinite` }} />)}
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={endRef} />
+      </div>
+
+      {/* Input */}
+      <div style={{ background:"#fff", borderTop:"1px solid #e2e8f0", padding:"12px 18px", display:"flex", gap:10, alignItems:"flex-end", flexShrink:0 }}>
+        <textarea
+          ref={taRef}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={onKey}
+          placeholder={`Escríbele a ${agent.name}... (Enter para enviar)`}
+          disabled={loading}
+          rows={1}
+          style={{ flex:1, border:"1px solid #e2e8f0", borderRadius:11, padding:"11px 14px", fontSize:13.5, resize:"none", fontFamily:"inherit", lineHeight:1.5, background:"#fafafa", color:"#0f172a", overflow:"hidden", transition:"border-color 0.15s, box-shadow 0.15s" }}
+        />
+        <button onClick={onSend} disabled={loading || !input.trim()}
+          style={{ padding:"11px 22px", borderRadius:11, border:"none", background: loading||!input.trim() ? "#e2e8f0" : agent.color, color: loading||!input.trim() ? "#94a3b8" : "#fff", fontSize:13.5, fontWeight:700, cursor: loading||!input.trim() ? "not-allowed" : "pointer", flexShrink:0, transition:"all 0.15s" }}
+          onMouseEnter={e => { if(!loading && input.trim()) e.currentTarget.style.filter="brightness(1.08)"; }}
+          onMouseLeave={e => e.currentTarget.style.filter="none"}>Enviar</button>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════
+   SYSTEM VIEW — Pro: filtros, score, historial
+══════════════════════════════════════ */
+const PIPELINE_META = [
+  {id:"atlas",  name:"ATLAS",  emoji:"🔍", label:"Cazador de Productos"},
+  {id:"nexo",   name:"NEXO",   emoji:"🧮", label:"Validación & Scoring"},
+  {id:"nova",   name:"NOVA",   emoji:"🏗️", label:"Constructor de Oferta"},
+  {id:"pluma",  name:"PLUMA",  emoji:"✍️",  label:"Copywriter Persuasivo"},
+  {id:"voltio", name:"VOLTIO", emoji:"⚡",  label:"Director de Anuncios"},
+  {id:"core",   name:"CORE",   emoji:"🧠", label:"Estrategia Final"},
+];
+const GREEN = "#22c55e";
+
+const NICHOS = ["General","Mascotas","Hogar","Fitness","Belleza","Tecnología","Bebés","Cocina","Viajes","Moda"];
+const PRECIOS = ["Cualquier precio","10-30€","30-60€","60-100€","+100€"];
+const TIPOS   = ["Cualquier tipo","Gadget","Accesorio","Cosmética","Ropa","Herramienta","Juguete","Deporte"];
+
+function ScoreBar({ label, value, max, color }) {
+  return (
+    <div style={{ marginBottom:6 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
+        <span style={{ fontSize:10, color:"#64748b" }}>{label}</span>
+        <span style={{ fontSize:10, fontWeight:700, color }}>{value}/{max}</span>
+      </div>
+      <div style={{ height:5, borderRadius:4, background:"#f1f5f9" }}>
+        <div style={{ height:5, borderRadius:4, background:color, width:`${(value/max)*100}%`, transition:"width 0.6s ease" }} />
+      </div>
+    </div>
+  );
+}
+
+function ScoreCard({ score, margen, puntoeq }) {
+  if (!score) return null;
+  const total = score.total || 0;
+  const color = total >= 75 ? GREEN : total >= 50 ? "#f59e0b" : "#ef4444";
+  return (
+    <div style={{ background:"#fff", border:`2px solid ${color}40`, borderRadius:12, padding:"16px", marginTop:10 }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+        <span style={{ fontSize:12, fontWeight:700, color:"#0f172a" }}>Score del Producto</span>
+        <div style={{ display:"flex", alignItems:"baseline", gap:4 }}>
+          <span style={{ fontSize:26, fontWeight:900, color }}>{total}</span>
+          <span style={{ fontSize:11, color:"#64748b" }}>/100</span>
+        </div>
+      </div>
+      <ScoreBar label="Margen"     value={score.margen||0}     max={30} color="#6366f1" />
+      <ScoreBar label="Saturación" value={score.saturacion||0} max={30} color="#8b5cf6" />
+      <ScoreBar label="Demanda"    value={score.demanda||0}    max={40} color={GREEN}   />
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginTop:10 }}>
+        <div style={{ background:"#f8fafc", borderRadius:8, padding:"8px", textAlign:"center" }}>
+          <div style={{ fontSize:15, fontWeight:800, color:"#0f172a" }}>{typeof margen==="number" ? margen.toFixed(2)+"€" : "—"}</div>
+          <div style={{ fontSize:9, color:"#64748b" }}>Margen neto/venta</div>
+        </div>
+        <div style={{ background:"#f8fafc", borderRadius:8, padding:"8px", textAlign:"center" }}>
+          <div style={{ fontSize:15, fontWeight:800, color:"#0f172a" }}>{puntoeq || "—"}</div>
+          <div style={{ fontSize:9, color:"#64748b" }}>Ventas mín/mes</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SystemView({ onBack }) {
+  const [phases,   setPhases]   = useState([]);
+  const [current,  setCurrent]  = useState(null);
+  const [status,   setStatus]   = useState("idle");
+  const [retryMsg, setRetryMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [expanded, setExpanded] = useState({});
+  const [historial,setHistorial]= useState([]);
+  const [tab,      setTab]      = useState("run");
+  const [decision, setDecision] = useState(null);
+  const [histSort, setHistSort] = useState("score"); // score | fecha
+  const [histFilter,setHistFilter]=useState("");
+  // Filtros
+  const [nicho,    setNicho]    = useState("General");
+  const [precio,   setPrecio]   = useState("Cualquier precio");
+  const [tipo,     setTipo]     = useState("Cualquier tipo");
+  const [objetivo, setObjetivo] = useState("");
+  const esRef  = useRef(null);
+  const endRef = useRef(null);
+
+  useEffect(() => { endRef.current?.scrollIntoView({behavior:"smooth"}); }, [phases, current]);
+
+  const loadHistory = async () => {
+    try {
+      const r = await fetch("/historial");
+      const d = await r.json();
+      setHistorial(d.reverse());
+    } catch {}
+  };
+
+  useEffect(() => { loadHistory(); }, []);
+
+  const buildUrl = (endpoint) => {
+    const params = new URLSearchParams();
+    if (nicho   !== "General")          params.set("nicho",   nicho);
+    if (precio  !== "Cualquier precio") params.set("precio",  precio);
+    if (tipo    !== "Cualquier tipo")   params.set("tipo",    tipo);
+    if (objetivo.trim())                params.set("objetivo",objetivo.trim());
+    const qs = params.toString();
+    return qs ? `${endpoint}?${qs}` : endpoint;
+  };
+
+  const startSSE = (url) => {
+    if (esRef.current) esRef.current.close();
+    setPhases([]); setCurrent(null); setRetryMsg(""); setErrorMsg("");
+    setDecision(null); setStatus("running"); setExpanded({}); setTab("run");
+
+    const es = new EventSource(url);
+    esRef.current = es;
+
+    es.addEventListener("phase_start", e => setCurrent(JSON.parse(e.data)));
+    es.addEventListener("phase_done",  e => { setPhases(p => [...p, JSON.parse(e.data)]); setCurrent(null); });
+    es.addEventListener("retry",       e => { setRetryMsg(JSON.parse(e.data).message); setPhases([]); setCurrent(null); });
+    es.addEventListener("decision",    e => setDecision(JSON.parse(e.data).decision));
+    es.addEventListener("complete",    () => { setStatus("complete"); setCurrent(null); es.close(); loadHistory(); });
+    es.addEventListener("error",       e => {
+      try { setErrorMsg(JSON.parse(e.data).message); } catch {}
+      setStatus("error"); setCurrent(null); es.close();
+    });
+    es.onerror = () => { setErrorMsg("Conexión perdida con el servidor."); setStatus("error"); es.close(); };
+  };
+
+  const startRun     = () => startSSE(buildUrl("/run-system"));
+  const regenProduct = () => startSSE(buildUrl("/run-atlas"));
+  const toggle       = id => setExpanded(p => ({...p, [id]: !p[id]}));
+  const doneIds      = phases.map(p => p.id);
+
+  // Historial ordenado y filtrado
+  const filteredHist = historial
+    .filter(h => !histFilter || h.producto.toLowerCase().includes(histFilter.toLowerCase()) || (h.nicho||"").toLowerCase().includes(histFilter.toLowerCase()))
+    .sort((a,b) => histSort==="score" ? (b.score||0)-(a.score||0) : (b.timestamp||0)-(a.timestamp||0));
+
+  const selStyle = (active) => ({
+    padding:"7px 16px", borderRadius:8, border:"none", cursor:"pointer",
+    fontSize:12, fontWeight:700, transition:"all 0.15s",
+    background: active ? "#0f172a" : "transparent",
+    color: active ? "#fff" : "#64748b"
   });
 
-  const data = await res.json();
-  alert(data.response || "Error");
+  const selectStyle = { padding:"7px 10px", borderRadius:8, border:"1px solid #e2e8f0", fontSize:12, background:"#fafafa", color:"#0f172a", cursor:"pointer", width:"100%" };
+
+  return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", background:"#f8fafc", height:"100%" }}>
+
+      {/* Header */}
+      <div style={{ background:"#fff", borderBottom:"1px solid #e2e8f0", padding:"12px 20px", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+        <button onClick={onBack} style={{ background:"none",border:"none",cursor:"pointer",color:"#64748b",fontSize:22,padding:"0 8px 0 0" }}>←</button>
+        <div style={{ width:36,height:36,borderRadius:9,background:GREEN+"18",border:`1px solid ${GREEN}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:GREEN,flexShrink:0 }}>SYS</div>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:14,fontWeight:800,color:"#0f172a" }}>SYSTEM <span style={{ fontSize:11,color:GREEN,fontWeight:600 }}>Orquestador Pro</span></div>
+          <div style={{ fontSize:10,color:"#94a3b8" }}>6 fases · Retry automático · Scoring · Memoria · Filtros</div>
+        </div>
+        {decision && (
+          <div style={{ padding:"5px 12px",borderRadius:20,fontWeight:700,fontSize:11,
+            background: decision==="LANZAR" ? "#f0fdf4" : "#fef2f2",
+            border: `1px solid ${decision==="LANZAR" ? "#86efac" : "#fecaca"}`,
+            color: decision==="LANZAR" ? "#15803d" : "#dc2626" }}>
+            {decision==="LANZAR" ? "🚀 LANZAR" : "⛔ NO LANZAR"}
+          </div>
+        )}
+        {status==="running" && !decision && (
+          <div style={{ display:"flex",alignItems:"center",gap:5,background:GREEN+"12",border:`1px solid ${GREEN}30`,borderRadius:20,padding:"4px 10px" }}>
+            <div style={{ width:6,height:6,borderRadius:"50%",background:GREEN,animation:"pulse 1s infinite" }} />
+            <span style={{ fontSize:10,color:GREEN,fontWeight:700 }}>EJECUTANDO</span>
+          </div>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div style={{ background:"#fff",borderBottom:"1px solid #e2e8f0",padding:"8px 20px",display:"flex",gap:4,flexShrink:0 }}>
+        <button style={selStyle(tab==="run")}     onClick={() => setTab("run")}>🚀 Ejecución</button>
+        <button style={selStyle(tab==="history")} onClick={() => { setTab("history"); loadHistory(); }}>📋 Historial ({historial.length})</button>
+      </div>
+
+      <div style={{ flex:1, overflowY:"auto", padding:"20px 24px 28px" }}>
+
+        {/* ── EJECUCIÓN ── */}
+        {tab==="run" && <>
+
+          {/* Objetivo de ganancia */}
+          <div style={{ background:"linear-gradient(135deg,#0f172a,#1e293b)",borderRadius:12,padding:"16px 18px",marginBottom:16 }}>
+            <div style={{ fontSize:11,fontWeight:700,color:"#f59e0b",letterSpacing:"0.08em",marginBottom:8 }}>🎯 MODO OBJETIVO</div>
+            <div style={{ display:"flex",gap:8,alignItems:"center" }}>
+              <input
+                value={objetivo}
+                onChange={e=>setObjetivo(e.target.value)}
+                placeholder="Ej: quiero ganar 1000€/mes, o empezar con 200€ de presupuesto..."
+                style={{ flex:1,padding:"9px 12px",borderRadius:9,border:"1px solid #334155",background:"#1e293b",color:"#f1f5f9",fontSize:12,fontFamily:"inherit" }}
+              />
+            </div>
+            <div style={{ fontSize:10,color:"#475569",marginTop:6 }}>El sistema adapta márgenes, precios y estrategia a tu objetivo concreto</div>
+          </div>
+
+          {/* Filtros */}
+          <div style={{ background:"#fff",border:"1px solid #e2e8f0",borderRadius:12,padding:"16px 18px",marginBottom:16 }}>
+            <div style={{ fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:12 }}>Filtros de búsqueda</div>
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14 }}>
+              <div>
+                <div style={{ fontSize:10,color:"#94a3b8",marginBottom:4 }}>Nicho</div>
+                <select value={nicho} onChange={e=>setNicho(e.target.value)} style={selectStyle}>
+                  {NICHOS.map(n=><option key={n}>{n}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize:10,color:"#94a3b8",marginBottom:4 }}>Precio de venta</div>
+                <select value={precio} onChange={e=>setPrecio(e.target.value)} style={selectStyle}>
+                  {PRECIOS.map(p=><option key={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize:10,color:"#94a3b8",marginBottom:4 }}>Tipo de producto</div>
+                <select value={tipo} onChange={e=>setTipo(e.target.value)} style={selectStyle}>
+                  {TIPOS.map(t=><option key={t}>{t}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ display:"flex",gap:8 }}>
+              <button onClick={startRun} disabled={status==="running"}
+                style={{ flex:1,padding:"11px 0",borderRadius:10,border:"none",
+                  background:status==="running"?"#e2e8f0":`linear-gradient(135deg,${GREEN},#16a34a)`,
+                  color:status==="running"?"#94a3b8":"#fff",fontSize:13,fontWeight:800,cursor:status==="running"?"not-allowed":"pointer" }}>
+                {status==="running"?"⏳ Ejecutando...":"🚀 Ejecutar sistema completo"}
+              </button>
+              <button onClick={regenProduct} disabled={status==="running"}
+                title="Solo busca un nuevo producto (rápido y barato)"
+                style={{ padding:"11px 14px",borderRadius:10,border:"1px solid #e2e8f0",background:"#fafafa",color:"#64748b",fontSize:12,fontWeight:600,cursor:status==="running"?"not-allowed":"pointer" }}>
+                🔍 Solo producto
+              </button>
+            </div>
+          </div>
+
+          {/* Progress */}
+          <div style={{ background:"#fff",border:"1px solid #e2e8f0",borderRadius:12,padding:"14px 18px",marginBottom:16 }}>
+            <div style={{ fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:12 }}>Progreso</div>
+            {PIPELINE_META.map(p => {
+              const done=doneIds.includes(p.id), running=current?.id===p.id;
+              return (
+                <div key={p.id} style={{ display:"flex",alignItems:"center",gap:10,marginBottom:7 }}>
+                  <div style={{ width:28,height:28,borderRadius:7,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,
+                    background:done?GREEN+"18":running?"#fef3c7":"#f1f5f9",
+                    border:`1px solid ${done?GREEN+"40":running?"#fde68a":"#e2e8f0"}` }}>
+                    {done?"✅":running?"⏳":p.emoji}
+                  </div>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <span style={{ fontSize:11,fontWeight:700,color:done?"#15803d":running?"#92400e":"#94a3b8" }}>{p.name} · {p.label}</span>
+                    {running && <div style={{ fontSize:9,color:"#f59e0b" }}>{current?.label}</div>}
+                  </div>
+                  <div style={{ width:44,height:3,borderRadius:3,background:done?GREEN:running?"#fde68a":"#f1f5f9",transition:"background 0.4s" }} />
+                </div>
+              );
+            })}
+          </div>
+
+          {retryMsg && <div style={{ background:"#fef3c7",border:"1px solid #fde68a",borderRadius:10,padding:"11px 14px",marginBottom:12,fontSize:12,color:"#92400e",fontWeight:600 }}>⚠️ {retryMsg}</div>}
+
+          {/* Fases completadas */}
+          {phases.map(p => {
+            const meta=PIPELINE_META.find(m=>m.id===p.id), open=expanded[p.id];
+            return (
+              <div key={p.id} style={{ background:"#fff",border:`1px solid ${GREEN}30`,borderRadius:11,marginBottom:9,overflow:"hidden",animation:"fadeIn 0.3s ease" }}>
+                <div onClick={()=>toggle(p.id)} style={{ padding:"12px 14px",display:"flex",alignItems:"center",gap:9,cursor:"pointer" }}>
+                  <span style={{ fontSize:15 }}>{meta?.emoji}</span>
+                  <div style={{ flex:1 }}>
+                    <span style={{ fontSize:12,fontWeight:700,color:"#0f172a" }}>{meta?.name}</span>
+                    <span style={{ fontSize:10,color:"#64748b",marginLeft:7 }}>{meta?.label}</span>
+                  </div>
+                  {p.id==="nexo" && p.score && (
+                    <span style={{ fontSize:11,fontWeight:800,color:p.score.total>=75?GREEN:p.score.total>=50?"#f59e0b":"#ef4444",marginRight:4 }}>{p.score.total}/100</span>
+                  )}
+                  <span style={{ fontSize:10,color:GREEN,fontWeight:600,marginRight:4 }}>✓</span>
+                  <span style={{ color:"#94a3b8",fontSize:12,transform:open?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s" }}>▾</span>
+                </div>
+                {open && (
+                  <div style={{ padding:"0 14px 14px",borderTop:"1px solid #f1f5f9" }}>
+                    {p.id==="nexo" && <ScoreCard score={p.score} margen={p.margen_neto} puntoeq={p.punto_equilibrio} />}
+                    <pre style={{ fontSize:11.5,color:"#334155",lineHeight:1.75,whiteSpace:"pre-wrap",wordBreak:"break-word",margin:"12px 0 0",fontFamily:"inherit" }}>{p.content}</pre>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {current && (
+            <div style={{ background:"#fffbeb",border:"1px solid #fde68a",borderRadius:11,padding:"13px 15px",marginBottom:9,animation:"fadeIn 0.2s ease" }}>
+              <div style={{ display:"flex",alignItems:"center",gap:7,marginBottom:4 }}>
+                <span style={{ fontSize:15 }}>⏳</span>
+                <span style={{ fontSize:12,fontWeight:700,color:"#92400e" }}>{current.name} — {current.label}</span>
+              </div>
+              <div style={{ display:"flex",gap:5,alignItems:"center" }}>
+                {[0,1,2].map(i=><div key={i} style={{ width:7,height:7,borderRadius:"50%",background:"#f59e0b",animation:`bounce 1.2s ease-in-out ${i*0.22}s infinite` }} />)}
+                <span style={{ fontSize:10,color:"#a16207",marginLeft:5 }}>Procesando con IA...</span>
+              </div>
+            </div>
+          )}
+
+          {status==="complete" && (
+            <div style={{ background:"linear-gradient(135deg,#f0fdf4,#dcfce7)",border:"1px solid #86efac",borderRadius:12,padding:"18px",textAlign:"center",animation:"fadeIn 0.4s ease" }}>
+              <div style={{ fontSize:24,marginBottom:7 }}>{decision==="LANZAR"?"🚀":"⛔"}</div>
+              <div style={{ fontSize:15,fontWeight:800,color:decision==="LANZAR"?"#15803d":"#dc2626",marginBottom:4 }}>{decision==="LANZAR"?"Decisión: LANZAR":"Decisión: NO LANZAR"}</div>
+              <div style={{ fontSize:11,color:"#166534",marginBottom:14 }}>Guardado en historial. Expande cada fase para ver el trabajo.</div>
+              <div style={{ display:"flex",gap:8,justifyContent:"center" }}>
+                <button onClick={startRun} style={{ padding:"8px 18px",borderRadius:9,border:"none",background:GREEN,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer" }}>🔄 Nuevo sistema</button>
+                <button onClick={regenProduct} style={{ padding:"8px 18px",borderRadius:9,border:"1px solid #e2e8f0",background:"#fff",color:"#64748b",fontSize:12,fontWeight:700,cursor:"pointer" }}>🔍 Otro producto</button>
+              </div>
+            </div>
+          )}
+
+          {status==="error" && (
+            <div style={{ background:"#fef2f2",border:"1px solid #fecaca",borderRadius:11,padding:"14px",textAlign:"center" }}>
+              <div style={{ fontSize:12,color:"#dc2626",fontWeight:600,marginBottom:9 }}>❌ {errorMsg||"Error en el sistema."}</div>
+              <button onClick={startRun} style={{ padding:"8px 18px",borderRadius:9,border:"none",background:"#ef4444",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer" }}>Reintentar</button>
+            </div>
+          )}
+
+          {status==="idle" && (
+            <div style={{ textAlign:"center",padding:"24px 20px",color:"#94a3b8",fontSize:13 }}>
+              Configura tu objetivo y filtros, luego pulsa <strong style={{color:"#0f172a"}}>Ejecutar sistema completo</strong>.
+            </div>
+          )}
+        </>}
+
+        {/* ── HISTORIAL ── */}
+        {tab==="history" && (
+          <div>
+            <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:14,flexWrap:"wrap" }}>
+              <input value={histFilter} onChange={e=>setHistFilter(e.target.value)} placeholder="Buscar en historial..."
+                style={{ flex:1,minWidth:140,padding:"7px 11px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:12,fontFamily:"inherit" }} />
+              <select value={histSort} onChange={e=>setHistSort(e.target.value)}
+                style={{ padding:"7px 10px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:12,background:"#fafafa",color:"#0f172a" }}>
+                <option value="score">Ordenar por Score</option>
+                <option value="fecha">Ordenar por Fecha</option>
+              </select>
+            </div>
+
+            {filteredHist.length===0 && (
+              <div style={{ textAlign:"center",padding:"36px 20px",color:"#94a3b8",fontSize:13 }}>
+                {historial.length===0?"Aún no hay productos. Ejecuta el sistema para guardar el primero.":"Sin resultados para ese filtro."}
+              </div>
+            )}
+
+            {filteredHist.map((h,i) => {
+              const sc=h.score||0;
+              const scoreColor=sc>=75?GREEN:sc>=50?"#f59e0b":"#ef4444";
+              return (
+                <div key={i} style={{ background:"#fff",border:"1px solid #e2e8f0",borderRadius:11,padding:"13px 15px",marginBottom:9,animation:"fadeIn 0.2s ease" }}>
+                  <div style={{ display:"flex",alignItems:"flex-start",gap:11 }}>
+                    <div style={{ width:40,height:40,borderRadius:9,background:scoreColor+"18",border:`1px solid ${scoreColor}30`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                      <span style={{ fontSize:13,fontWeight:900,color:scoreColor,lineHeight:1 }}>{sc}</span>
+                      <span style={{ fontSize:7,color:scoreColor }}>pts</span>
+                    </div>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <div style={{ fontSize:12,fontWeight:700,color:"#0f172a",marginBottom:5,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical" }}>{h.producto}</div>
+                      <div style={{ display:"flex",gap:5,flexWrap:"wrap",alignItems:"center" }}>
+                        <span style={{ fontSize:9,background:"#f1f5f9",color:"#64748b",padding:"2px 7px",borderRadius:5 }}>{h.nicho}</span>
+                        <span style={{ fontSize:9,background:"#f1f5f9",color:"#64748b",padding:"2px 7px",borderRadius:5 }}>{h.precio}</span>
+                        <span style={{ fontSize:9,background:GREEN+"12",color:GREEN,padding:"2px 7px",borderRadius:5,fontWeight:700 }}>{typeof h.margen==="number"?h.margen.toFixed(1)+"€ neto":"—"}</span>
+                        {h.decision && <span style={{ fontSize:9,padding:"2px 7px",borderRadius:5,fontWeight:700,background:h.decision==="LANZAR"?"#f0fdf4":"#fef2f2",color:h.decision==="LANZAR"?"#15803d":"#dc2626" }}>{h.decision==="LANZAR"?"🚀 LANZAR":"⛔ NO LANZAR"}</span>}
+                        <span style={{ fontSize:9,color:"#94a3b8",marginLeft:"auto" }}>{h.fecha||""}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div ref={endRef} />
+      </div>
+    </div>
+  );
 }
+
+/* ══════════════════════════════════════
+   APP
+══════════════════════════════════════ */
+function App() {
+  const [activeId, setActiveId] = useState(null);
+  const [convs,   setConvs]    = useState({});
+  const [input,   setInput]    = useState("");
+  const [loading, setLoading]  = useState(false);
+  const endRef = useRef(null);
+
+  const msgs = activeId ? (convs[activeId] || []) : [];
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior:"smooth" }); }, [msgs, loading]);
+
+  const send = async () => {
+    if (!input.trim() || loading || !activeId) return;
+    const agent   = AGENTS.find(a => a.id === activeId);
+    const userMsg = { role:"user", content:input.trim() };
+    const updated = [...msgs, userMsg];
+    setConvs(p => ({ ...p, [activeId]: updated }));
+    setInput(""); setLoading(true);
+    try {
+      const res  = await fetch("/api", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({model:"claude-3-5-sonnet-20241022",max_tokens:1500,system:agent.prompt,messages:updated})
+      });
+      const data = await res.json();
+      const aiMsg = { role:"assistant", content: data.content?.[0]?.text || "Error al generar respuesta." };
+      setConvs(p => ({ ...p, [activeId]: [...updated, aiMsg] }));
+    } catch {
+      setConvs(p => ({ ...p, [activeId]: [...updated, {role:"assistant",content:"Error de conexión. Asegúrate de que el servidor está activo."}] }));
+    }
+    setLoading(false);
+  };
+
+  const handleKey = e => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); send(); } };
+  const runSystem = () => setActiveId("system");
+  const agent = activeId ? AGENTS.find(a => a.id === activeId) : null;
+
+  return (
+    <div style={{ display:"flex", width:"100%", height:"100vh", fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif", overflow:"hidden" }}>
+      <Sidebar agents={AGENTS} activeId={activeId} onSelect={setActiveId} onHome={() => setActiveId(null)} />
+      {activeId === "system"
+        ? <SystemView onBack={() => setActiveId(null)} />
+        : agent
+          ? <ChatView agent={agent} messages={msgs} input={input} setInput={setInput} loading={loading} onSend={send} onKey={handleKey} endRef={endRef} onBack={() => setActiveId(null)} />
+          : <Dashboard agents={AGENTS} onSelect={setActiveId} onRunSystem={runSystem} />}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 </script>
 </body>
 </html>

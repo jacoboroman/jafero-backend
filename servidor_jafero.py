@@ -1,52 +1,30 @@
-import http.server, json, os
-from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import json
 
-API_KEY = os.environ.get("ANTHROPIC_API_KEY","")
-PORT = int(os.environ.get("PORT",8080))
-
-def call_ai(system, message):
-    import urllib.request
-    body = json.dumps({
-        "model":"claude-3-5-sonnet-20241022",
-        "max_tokens":500,
-        "system":system,
-        "messages":[{"role":"user","content":message}]
-    }).encode()
-
-    req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages",
-        data=body,
-        headers={
-            "Content-Type":"application/json",
-            "x-api-key":API_KEY,
-            "anthropic-version":"2023-06-01"
-        }
-    )
-
-    with urllib.request.urlopen(req) as r:
-        return json.loads(r.read())["content"][0]["text"]
-
-class Handler(http.server.BaseHTTPRequestHandler):
+class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/":
-            with open("mis_agentes_jafero.html","rb") as f:
-                self.send_response(200)
-                self.send_header("Content-type","text/html")
-                self.end_headers()
-                self.wfile.write(f.read())
+            with open("mis_agentes_jafero.html","r",encoding="utf-8") as f:
+                html = f.read()
+            self.send_response(200)
+            self.send_header("Content-type","text/html")
+            self.end_headers()
+            self.wfile.write(html.encode())
 
     def do_POST(self):
-        if self.path == "/api":
+        if self.path == "/chat":
             length = int(self.headers.get('Content-Length'))
-            body = json.loads(self.rfile.read(length))
+            body = self.rfile.read(length)
+            data = json.loads(body)
 
-            response = call_ai(body.get("system",""), body.get("message",""))
+            response = "Respuesta de prueba: " + data.get("msg","")
 
             self.send_response(200)
-            self.send_header("Content-Type","application/json")
+            self.send_header("Content-type","text/plain")
             self.end_headers()
-            self.wfile.write(json.dumps({"response":response}).encode())
+            self.wfile.write(response.encode())
 
-http.server.HTTPServer(("",PORT), Handler).serve_forever()
+server = HTTPServer(("0.0.0.0", 10000), Handler)
+print("Servidor corriendo...")
+server.serve_forever()
