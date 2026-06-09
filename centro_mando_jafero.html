@@ -608,7 +608,7 @@ Español de España. Sin clichés. Solo accionable.`;
     if(objetivo.trim()) parts.push(`Objetivo: ${objetivo.trim()}`);
     try {
       const res=await fetch("/api",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({model:"claude-3-5-sonnet-20241022",max_tokens:8000,system:SYSTEM_PROMPT,messages:[{role:"user",content:parts.join("\n")}]})});
+        body:JSON.stringify({model:"claude-3-haiku-20240307",max_tokens:8000,system:SYSTEM_PROMPT,messages:[{role:"user",content:parts.join("\n")}]})});
       const data=await res.json();
       const text=data.response||"";
       if(!text) throw new Error("Respuesta vacía.");
@@ -726,7 +726,7 @@ function App() {
     setInput(""); setLoading(true);
     try {
       const res=await fetch("/api",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({model:"claude-3-5-sonnet-20241022",max_tokens:1500,system:agent.prompt,messages:updated})});
+        body:JSON.stringify({model:"claude-3-haiku-20240307",max_tokens:1500,system:agent.prompt,messages:updated})});
       const data=await res.json();
       const aiMsg={role:"assistant",content:data.response||"Error al generar respuesta."};
       setConvs(p=>({...p,[activeId]:[...updated,aiMsg]}));
