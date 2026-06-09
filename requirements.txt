@@ -1,1 +1,1 @@
-# Sin dependencias externas - solo librería estándar de Python
+# No dependencies required
